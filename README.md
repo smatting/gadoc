@@ -1,6 +1,7 @@
 # Gadoc
 
-Gadoc is package docs browser for Haskell. It's written in [Haskell](https://www.haskell.org/), [Purescript](https://www.purescript.org/) and [nix](https://nixos.org/)
+Gadoc is package docs browser for Haskell. It's written in [Haskell](https://www.haskell.org/), [Purescript](https://www.purescript.org/) and [nix](https://nixos.org/).
+
 It's in very early experimental development, a lot of things don't work yet, for example Haskell projects created with [stack](https://docs.haskellstack.org/en/stable/README/).
 
 [![Video](https://raw.githubusercontent.com/smatting/gadoc/master/imgs/gadoc-demo.png)](https://xahv0eel.s3.eu-central-1.amazonaws.com/gadoc-demo.webm)
@@ -27,5 +28,16 @@ NOTE: I've only tested Gadoc with Haskell environments which are set up by nix! 
 2. Run `gadoc`.  Gadoc will create a `generated-docs` directory and open the file `generated-docs/html/index.html` in your browser.
    Running `gadoc` again (with no changes to packages) will just open the `index.html` again.
 
+
+
+##  Development
+
+To develop the command line tool run `nix-shell` and build the project with `cabal`. `ghcid` is also available in the dev environment.
+The cabal projects expects the frontend built assets in `html/`. See [project.nix](https://github.com/smatting/gadoc/blob/master/project.nix) for a tarball of a frontend built, or build the frontend yourself and copy the contents of `frontend/dist/` to `html`.
+
+To develop the frontend install [spago](https://github.com/purescript/spago) and [parcel](https://parceljs.org/). Then see [build.sh](https://github.com/smatting/gadoc/blob/master/frontend/build.sh)
+
+
+## Gadidae
 
 The name Gadoc derives from fish family [Gadidae](https://en.wikipedia.org/wiki/Gadidae). Gadidae include species such as cods and haddocks....
