@@ -1,5 +1,7 @@
 # gadoc
 
+[![demo](https://github.com/smatting/gadoc/blob/master/imgs/gadoc-demo.jpg?raw=true)](https://xahv0eel.s3.eu-central-1.amazonaws.com/gadoc-demo.webm)
+
 <video loop>
   <source src="https://xahv0eel.s3.eu-central-1.amazonaws.com/gadoc-demo.webm" type="video/webm">
 </video> 
