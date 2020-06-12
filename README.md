@@ -1,10 +1,10 @@
 # gadoc
 
-[![demo](https://github.com/smatting/gadoc/blob/master/imgs/gadoc-demo.jpg?raw=true)](https://xahv0eel.s3.eu-central-1.amazonaws.com/gadoc-demo.webm)
+Gadoc is package docs browser for Haskell. [![Video](https://raw.githubusercontent.com/smatting/gadoc/master/imgs/gadoc-demo.png)](https://xahv0eel.s3.eu-central-1.amazonaws.com/gadoc-demo.webm)
 
-<video loop>
-  <source src="https://xahv0eel.s3.eu-central-1.amazonaws.com/gadoc-demo.webm" type="video/webm">
-</video> 
+Some of it's features bare:
+  - The browser can be opened with `file://` urls. There is no need to start a local web server.
+  - gadoc is suitable for browsing _local_ package docs, because it needs to load multiple MB of index data to your browser
 
 ## Install
 ### Prerequisites
