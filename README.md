@@ -8,7 +8,7 @@ It's in very early experimental development, a lot of things don't work yet, for
 
 Some of Gadoc's features are:
   - Gadoc works with `file://` urls. There is no need to start a local web server.
-  - Gadoc is suitable for browsing _local_ package docs, because it needs to load multiple MB of index data to your browser
+  - Gadoc is only suitable for browsing *local* package docs, because it needs to load multiple MB of index data to your browser
 
 ## Install
 Prerequisites:
