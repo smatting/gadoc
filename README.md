@@ -1,5 +1,9 @@
 # gadoc
 
+<video loop>
+  <source src="https://xahv0eel.s3.eu-central-1.amazonaws.com/gadoc-demo.webm" type="video/webm">
+</video> 
+
 ## Install
 ### Prerequisites
 - [nix](https://nixos.org/nix/) `curl -L https://nixos.org/nix/install | sh`
