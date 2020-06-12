@@ -32,13 +32,15 @@ NOTE: I've only tested Gadoc with Haskell environments which are set up by nix! 
 
 ##  Development
 
-To develop the command line tool run `nix-shell` and build the project with `cabal`. `ghcid` is also available in the dev environment.
+If you like the idea of Gadoc, please contribute! (Hi Zurihac!)
+
+To develop the command line tool `gadoc` run `nix-shell` and build the project with `cabal`. `ghcid` is also available in the dev environment.
 The cabal projects expects the frontend built assets in `html/`. See [project.nix](https://github.com/smatting/gadoc/blob/master/project.nix) for a tarball of a frontend built, or build the frontend yourself and copy the contents of `frontend/dist/` to `html`.
 
-To develop the frontend install [spago](https://github.com/purescript/spago) and [parcel](https://parceljs.org/).
+To develop the frontend in `frontend/` install [spago](https://github.com/purescript/spago) and [parcel](https://parceljs.org/).
 Run `spago build -w` and in a separate terminal run `parcel serve --no-source-maps index.html`.
 The frontend also expects the index files that the `gadoc` tool crates (`docstate.js`, `targets.js`, `modules.js`) in the `dist/` directory, so copy them there. 
 
 ## Gadidae
 
-The name Gadoc derives from fish family [Gadidae](https://en.wikipedia.org/wiki/Gadidae). Gadidae include species such as cods and haddocks....
+The name Gadoc derives from fish family [Gadidae](https://en.wikipedia.org/wiki/Gadidae). Gadidae include species such haddocks....
