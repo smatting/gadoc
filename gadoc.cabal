@@ -1,0 +1,54 @@
+cabal-version:       >=1.10
+
+name:                gadoc
+version:             0.1.0.0
+synopsis:            A package docs browser for Haskell
+license-file:        LICENSE
+author:              Stefan Matting
+maintainer:          stefan.matting@gmail.com
+build-type:          Simple
+extra-source-files:  CHANGELOG.md
+
+data-files:
+    html/frontend.e31bb0bc.js
+    html/style.c61ab535.css
+    html/index.html
+
+executable gadoc
+  main-is:             src/Main.hs
+  build-depends:
+        base
+      , gadoc
+  default-language:    Haskell2010
+
+  other-modules:
+     Paths_gadoc
+
+library
+  hs-source-dirs:
+    src/
+
+  exposed-modules:
+    Gadoc.Lib
+
+  other-modules:
+    Paths_gadoc
+
+  build-depends:
+      base
+    , parser-combinators
+    , text
+    , containers
+    , blaze-html
+    , directory
+    , bytestring
+    , hoogle
+    , vector
+    , extra
+    , aeson
+    , mtl
+    , filepath
+    , easy-file
+    , open-browser
+
+  default-language:    Haskell2010
