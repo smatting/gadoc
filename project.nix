@@ -4,8 +4,8 @@ let
   src = import ./nix/sources.nix;
   pkgs = import src.nixpkgs {};
   prebuiltFrontend = pkgs.fetchurl {
-        url = "https://xahv0eel.s3.eu-central-1.amazonaws.com/8ab653e.tar.gz";
-        sha256 = "1am5id5lq6x8ypyz4a1s9h3k15bqid349999x8ssj4hg9cczyffh";
+    url = "https://xahv0eel.s3.eu-central-1.amazonaws.com/8ab653e.tar.gz";
+    sha256 = "1am5id5lq6x8ypyz4a1s9h3k15bqid349999x8ssj4hg9cczyffh";
   };
 
   source = pkgs.lib.sourceByRegex ./. [
@@ -15,8 +15,8 @@ let
     "^.*\\.cabal$"
     "^src.*$"
     "^tests.*$"
-    "^html.*$"
     "LICENSE"
+    # "^html.*$"
     ];
 
   publishedAssets = pkgs.stdenv.mkDerivation {
@@ -49,6 +49,7 @@ let
 
   overlay = self: super: {
     "${packageName}" = super.callCabal2nix "${packageName}" sourceWithLocalAssets { };
+    "${packageName}-dev" = super.callCabal2nix "${packageName}" source { };
     "${packageName}-pinned-frontend" = super.callCabal2nix "${packageName}" sourceWithPublishedAssets { };
 
     "hoogle" = super.hoogle.overrideAttrs (oldAttrs: {patchPhase = ''
@@ -139,11 +140,12 @@ let
   };
 
 in {
+  dev = haskellPackages."${packageName}-dev";
   build = haskellPackages."${packageName}-local";
   build-pinned-frontend = haskellPackages."${packageName}-pinned-frontend";
 
   shell = haskellPackages.shellFor {
-    packages = ps: [ ps."${packageName}" ];
+    packages = ps: [ ps."${packageName}-dev" ];
     buildInputs = [
       haskellPackages.cabal-install
       haskellPackages.ghcid

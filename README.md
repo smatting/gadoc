@@ -2,7 +2,7 @@
 
 Gadoc is package docs browser for Haskell. It's written in [Haskell](https://www.haskell.org/), [Purescript](https://www.purescript.org/) and [nix](https://nixos.org/).
 
-It's in very early experimental development, a lot of things don't work yet, for example Haskell projects created with [stack](https://docs.haskellstack.org/en/stable/README/).
+Gadoc in very early experimental development, a lot of things have not been test and might not work!
 
 [![Video](https://raw.githubusercontent.com/smatting/gadoc/master/imgs/gadoc-demo.png)](https://xahv0eel.s3.eu-central-1.amazonaws.com/gadoc-demo.webm)
 
@@ -12,7 +12,7 @@ Some of Gadoc's features are:
 
 ## Install
 Prerequisites:
--
+
 - Install [nix](https://nixos.org/nix/)
 
 To install the latest of Gadoc version, run:
@@ -22,12 +22,12 @@ nix-env -if https://github.com/smatting/gadoc/archive/master.tar.gz
 
 ## Usage
 
-NOTE: I've only tested Gadoc with Haskell environments which are set up by nix!  Projects build with Stack don't work (yet)!
+Run `gadoc` in your Haskell project directory. Gadoc will create a `generated-docs` directory and open the file `generated-docs/html/index.html` in your browser.
+Running `gadoc` again (with no changes to packages) will just open the `index.html` again
 
-1. Enter the development environment of your project, e.g. `nix-shell`
-2. Run `gadoc`. Gadoc will create a `generated-docs` directory and open the file `generated-docs/html/index.html` in your browser.
-   Running `gadoc` again (with no changes to packages) will just open the `index.html` again.
+If your project is built with stack, make sure you've compiled all your packages with their local hasddocks: `stack build --haddock --only-dependencies`.
 
+If your project is built with nix, run `gadoc` from within your nix shell.
 
 
 ##  Development

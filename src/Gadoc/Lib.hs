@@ -13,9 +13,13 @@ import Control.Monad (forM_)
 import qualified Data.ByteString.Char8 as C8
 import Data.Char (isSpace)
 import Data.Ord
+import Data.Foldable
+import System.Environment (lookupEnv)
+import System.IO (stderr, hPutStr)
+import System.Exit (exitFailure)
 
 -- extra
-import Data.List.Extra
+import Data.List.Extra (sortBy)
 
 -- bytestring
 import qualified Data.ByteString.Char8 as BS
@@ -27,7 +31,7 @@ import qualified Data.Vector as VV
 
 -- text
 import qualified Data.Text.Lazy as TL hiding (foldl')
-import Data.Text.Lazy.IO as TL hiding (putStrLn)
+import qualified Data.Text.Lazy.IO as TL hiding (putStrLn)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8)
@@ -60,13 +64,23 @@ import System.FilePath.Posix ((</>))
 import System.EasyFile (createDirectoryIfMissing, doesFileExist)
 
 -- directory
-import System.Directory (canonicalizePath, copyFile)
+import System.Directory (canonicalizePath, copyFile, doesFileExist, findFile,
+                        getModificationTime, getDirectoryContents, doesDirectoryExist, listDirectory)
 
 -- gadoc
 import Paths_gadoc (getDataFileName)
 
 -- open-browser
 import Web.Browser (openBrowser)
+
+-- filemanip (find)
+import qualified System.FilePath.Find as Find
+
+-- -- process
+import System.Process (shell, readCreateProcess, CreateProcess(..))
+
+-- optparse-applicative
+
 
 
 data NamesSize a where NamesSize :: NamesSize Int deriving Typeable
@@ -326,15 +340,25 @@ ghcPkgs = do
   keys <- M.keys <$> readGhcPkg settings
   pure $ show <$> keys
 
-checkIndexValid :: String -> FilePath -> IO Bool
-checkIndexValid s fn = do
+contentMatches :: FilePath -> String -> IO Bool
+contentMatches fn s = do
   exists <- doesFileExist fn
   if exists
     then do
       cached <- Prelude.readFile fn
-      now <- show <$> ghcPkgs
-      pure (now == cached)
+      pure (s == cached)
     else pure False
+
+indexIsValid :: FilePath -> FilePath -> IO Bool
+indexIsValid hoogleDbFile genDocsDir = do
+  s <- show <$> getModificationTime hoogleDbFile
+  (genDocsDir </> "cache.txt") `contentMatches` s
+
+markIndexIsValid :: FilePath -> FilePath -> IO ()
+markIndexIsValid hoogleDbFile genDocsDir = do
+  s <- show <$> getModificationTime hoogleDbFile
+  Prelude.writeFile (genDocsDir </> "cache.txt") s
+
 
 copyAssets :: FilePath -> IO ()
 copyAssets dstDir = do
@@ -344,24 +368,121 @@ copyAssets dstDir = do
     copyFile src (dstDir </> fn)
 
 
+-- 1. generate haddocks
+--   stack: stack build --haddock --only-dependencies
+--   nix: already by default
+--   cabal: ???
+--
+-- 2. generate hoogle db
+--  stack: stack hoogle --rebuild
+--  nix: genDB
+--
+-- 3. convert index to json & deploy
+
+data ProjectBuildSystem
+  = Stack
+  | NixPkgs
+  | Cabal
+  deriving (Show, Eq, Ord)
+
+
+inferBuildSystem :: FilePath -> IO ProjectBuildSystem
+inferBuildSystem projectDir = do
+  hasStackYaml <- doesFileExist (projectDir </> "stack.yaml")
+  hasNixFiles <- (||) <$> doesFileExist (projectDir </> "default.nix") <*> doesFileExist (projectDir </> "shell.nix")
+  if hasNixFiles
+     then pure NixPkgs
+     else
+        if hasStackYaml
+           then pure Stack
+           else pure Cabal
+
+
+findStackHoogleDB' :: FilePath -> IO (Maybe FilePath)
+findStackHoogleDB' dir =
+  listToMaybe <$> searchFiles "database.hoo" dir
+    where searchFiles pat = Find.find Find.always (Find.fileName Find.~~? pat)
+
+
+findStackHoogleDB :: FilePath ->  IO (Maybe FilePath)
+findStackHoogleDB projectDir = do
+  let hdir = projectDir </> "./.stack-work/hoogle"
+  exists <- doesDirectoryExist hdir
+  case exists of
+    True -> findStackHoogleDB' hdir
+    False -> pure Nothing
+
+
+lookupHoogleDB :: ProjectBuildSystem -> FilePath -> IO (Maybe FilePath)
+lookupHoogleDB Stack projectDir = findStackHoogleDB projectDir
+lookupHoogleDB x projectDir = do
+  let fn = projectDir </> "generated-docs/db.hoo"
+  exists <- doesFileExist fn
+  case exists of
+    True -> pure (Just fn)
+    False -> pure Nothing
+
+
+generateHoogleDB :: ProjectBuildSystem -> FilePath -> IO (Either String FilePath)
+
+generateHoogleDB Stack projectDir = do
+  readCreateProcess ((shell "stack hoogle --rebuild") { cwd = Just projectDir }) "" >>= putStrLn
+  dbNew <- findStackHoogleDB projectDir
+  case dbNew of
+    Nothing -> pure $ Left "Cannot find hoogle database created by \"stack hoogle\""
+    Just f -> pure $ Right f
+
+generateHoogleDB NixPkgs projectDir = do
+  inNixShell <- isJust <$> lookupEnv "IN_NIX_SHELL"
+  if not inNixShell
+     then pure $ Right "For nix-based project you must gadoc from within a nix shell"
+     else do
+        let fn = projectDir </> "generated-docs/db.hoo"
+        genDb fn
+        pure (Right fn)
+
+generateHoogleDB Cabal projectDir = do
+  let fn = projectDir </> "generated-docs/db.hoo"
+  genDb fn
+  pure (Right fn)
+
+
+getHoogleDB :: ProjectBuildSystem -> FilePath -> IO FilePath
+getHoogleDB buildSystem projectDir = do
+  mf <- lookupHoogleDB buildSystem projectDir
+  case mf of
+    Just f -> pure f
+    Nothing -> do
+      x <- generateHoogleDB buildSystem projectDir
+      case x of
+        Left x -> do
+            hPutStr stderr (x <> "\n")
+            exitFailure
+        Right f -> pure f
+
+
+
 main :: IO ()
 main = do
-  let dir = "./generated-docs"
-      hoogleDbFile = dir </> "db.hoo"
-      packagesFilename = dir </> "packages.txt"
-      htmlDir = dir </> "html"
+  let projectDir = "."
+  bs <- inferBuildSystem projectDir
 
-  indexURI <- ("file://" <>) <$> canonicalizePath (htmlDir </> "index.html")
+  case bs of
+    Stack -> putStrLn "Gadoc: I assume this is a Stack project"
+    NixPkgs -> putStrLn "Gadoc: I assume this is a nix-based project"
+    Cabal -> putStrLn "Gadoc: I assume this is a Cabal project"
 
-  createDirectoryIfMissing True dir
+  hoogleDbFile <- getHoogleDB bs projectDir
+
+  let genDocsDir = projectDir </> "generated-docs"
+      htmlDir = genDocsDir </> "html"
+
+  createDirectoryIfMissing True genDocsDir
   createDirectoryIfMissing True htmlDir
 
-  pkgsString <- show <$> ghcPkgs
-  indexValid <- checkIndexValid pkgsString packagesFilename
+  indexValid <- indexIsValid hoogleDbFile genDocsDir
 
   when (not indexValid) $ do
-    genDb hoogleDbFile
-    Prelude.writeFile packagesFilename pkgsString
 
     storeReadFile hoogleDbFile $ \store -> do
       putStrLn "Converting index to json..."
@@ -376,9 +497,9 @@ main = do
       writeAsset htmlDir docstate "docstate"
       writeAsset htmlDir pdocs "modules"
 
-      putStrLn "done."
+      copyAssets genDocsDir
+      markIndexIsValid hoogleDbFile genDocsDir
 
-  copyAssets dir
-
+  indexURI <- ("file://" <>) <$> canonicalizePath (htmlDir </> "index.html")
   putStrLn indexURI
   void $ openBrowser indexURI

@@ -50,5 +50,8 @@ library
     , filepath
     , easy-file
     , open-browser
+    , optparse-applicative
+    , filemanip
+    , process
 
   default-language:    Haskell2010
