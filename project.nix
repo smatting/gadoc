@@ -4,8 +4,8 @@ let
   src = import ./nix/sources.nix;
   pkgs = import src.nixpkgs {};
   prebuiltFrontend = pkgs.fetchurl {
-    url = "https://xahv0eel.s3.eu-central-1.amazonaws.com/8ab653e.tar.gz";
-    sha256 = "1am5id5lq6x8ypyz4a1s9h3k15bqid349999x8ssj4hg9cczyffh";
+    url = "https://xahv0eel.s3.eu-central-1.amazonaws.com/258631e.tar.gz";
+    sha256 = "1bck7bvppiqs1acr3qmwqil6zvp2k6m4nyizvm5ilk16zgvbw70z";
   };
 
   source = pkgs.lib.sourceByRegex ./. [
