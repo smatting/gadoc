@@ -1,14 +1,14 @@
 # Gadoc
 
-Gadoc is package docs browser for Haskell. It's written in [Haskell](https://www.haskell.org/), [Purescript](https://www.purescript.org/) and [nix](https://nixos.org/).
+Gadoc is a package docs generator for Haskell. Similar to Purescript (`purs docs`) and Rust (`cargo doc`) Gadoc generates a file `generated-docs/html/index.html` that can be opened with a Browser without starting a local server.
+
+Gadoc written in [Haskell](https://www.haskell.org/), [Purescript](https://www.purescript.org/) and [nix](https://nixos.org/).
 
 Gadoc in very early experimental development, a lot of things have not been test and might not work!
 
 [![Video](https://raw.githubusercontent.com/smatting/gadoc/master/imgs/gadoc-demo.png)](https://xahv0eel.s3.eu-central-1.amazonaws.com/gadoc-demo.webm)
 
-Some of Gadoc's features are:
-  - Gadoc works with `file://` urls. There is no need to start a local web server.
-  - Gadoc is only suitable for browsing *local* package docs, because it needs to load multiple MB of index data to your browser
+Gadoc is only suitable for browsing *local* package docs, because it needs to load multiple MBs of search index data to the browser.
 
 ## Install
 Prerequisites:
