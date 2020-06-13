@@ -435,7 +435,7 @@ generateHoogleDB Stack projectDir = do
 generateHoogleDB NixPkgs projectDir = do
   inNixShell <- isJust <$> lookupEnv "IN_NIX_SHELL"
   if not inNixShell
-     then pure $ Right "For nix-based project you must gadoc from within a nix shell"
+     then pure $ Left "You must gadoc from within a nix shell"
      else do
         let fn = projectDir </> "generated-docs/db.hoo"
         genDb fn
