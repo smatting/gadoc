@@ -54,7 +54,8 @@ type DocState =
   {
     urls :: Array String,
     packages :: Array String,
-    modules :: Array {package:: String, module:: String}
+    modules :: Array {package:: String, module:: String},
+    docTitle :: String
   }
 
 loadDocState :: Aff DocState

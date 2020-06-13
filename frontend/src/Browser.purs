@@ -134,11 +134,12 @@ component = Hooks.component \_ _ -> Hooks.do
     liftEffect $ log "loading"
     allPackageDocs' <- liftAff loadAllPackageDocs
 
-    liftEffect $ setDocumentTitle "hahaha"
 
     _ <- liftAff loadKey2Target
-    _ <- liftAff loadDocState
+    docState <- liftAff loadDocState
     _ <- liftAff loadKeys
+
+    liftEffect $ setDocumentTitle docState.docTitle
 
     liftEffect $ log "loaded"
     {-- liftEffect $ log (show (wrKeys allPackageDocs')) --}
