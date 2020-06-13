@@ -9,6 +9,7 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 
+import Effect (Effect)
 import Effect.Console (log)
 import Effect.Class (liftEffect)
 import HDAssets
@@ -41,6 +42,9 @@ import Dropdown (Message(..))
 import Data.Symbol (SProxy(..))
 
 import PackageDocs (PackageDocs, loadAllPackageDocs)
+
+
+foreign import setDocumentTitle :: String -> Effect Unit
 
 
 m2l :: forall a. Maybe a -> Array a
@@ -126,8 +130,11 @@ component = Hooks.component \_ _ -> Hooks.do
 
 
   Hooks.useLifecycleEffect do
+
     liftEffect $ log "loading"
     allPackageDocs' <- liftAff loadAllPackageDocs
+
+    liftEffect $ setDocumentTitle "hahaha"
 
     _ <- liftAff loadKey2Target
     _ <- liftAff loadDocState

@@ -69,7 +69,7 @@ import qualified Data.Map.Strict as M
 import System.FilePath.Posix ((</>))
 
 -- easy-file
-import System.EasyFile (createDirectoryIfMissing, doesFileExist)
+import System.EasyFile (createDirectoryIfMissing, doesFileExist, takeFileName)
 
 -- directory
 import System.Directory (canonicalizePath, copyFile, doesFileExist, findFile,
@@ -179,15 +179,17 @@ data DocState
   = DocState
       { _urlsEnum :: Enumeration UrlWithoutFragment,
         _packageEnum :: Enumeration PackageName,
-        _moduleEnum :: Enumeration ModuleName
+        _moduleEnum :: Enumeration ModuleName,
+        _docTitle :: String
       }
   deriving (Show, Eq, Ord)
 
-emptyDocState =
+newDocState title =
   DocState
     { _urlsEnum = emptyEnum,
       _packageEnum = emptyEnum,
-      _moduleEnum = emptyEnum
+      _moduleEnum = emptyEnum,
+      _docTitle = title
     }
 
 instance ToJSON DocState
@@ -195,7 +197,8 @@ instance ToJSON DocState
     toJSON ds =
       object [ "urls" .= listEnumeration (_urlsEnum ds),
                "packages" .= listEnumeration (_packageEnum ds),
-               "modules" .= listEnumeration (_moduleEnum ds)
+               "modules" .= listEnumeration (_moduleEnum ds),
+               "docTitle" .= String (T.pack (_docTitle ds))
              ]
 
 data PackageDocs =
@@ -388,7 +391,6 @@ findSubstring pat str = findIndex (isPrefixOf pat) (tails str)
 
 extractDB :: FilePath -> IO (Maybe FilePath)
 extractDB fn = do
-  let needle = "--database "
   s <- readFile fn
   let (a, _, _, xs) = ((s :: String) =~ ("--database ([^ ]+)" :: String)) :: (String, String, String, [String])
   pure (listToMaybe xs)
@@ -461,6 +463,10 @@ data HoogleDBSource
   deriving (Show, Eq, Ord)
 
 
+getProjectName :: FilePath -> IO String
+getProjectName dir =
+  takeFileName <$> canonicalizePath dir
+
 main :: IO ()
 main = do
   let projectDir = "."
@@ -482,6 +488,8 @@ main = do
 
   indexValid <- indexIsValid hoogleDbFile genDocsDir
 
+  projectName <- getProjectName projectDir
+
   when (not indexValid) $ do
 
     storeReadFile hoogleDbFile $ \store -> do
@@ -490,7 +498,7 @@ main = do
       let namesText = storeRead store NamesText
           namesItems = V.toList (storeRead store NamesItems)
           items = zip (bstr0Split namesText) (lookupItem store <$> namesItems)
-          (docstate, keyTargetPairs, pdocs) = foldl' aggItem (emptyDocState, [], M.empty) items
+          (docstate, keyTargetPairs, pdocs) = foldl' aggItem (newDocState projectName, [], M.empty) items
           targets = groupByKeys keyTargetPairs
 
       writeAsset htmlDir targets "targets"
