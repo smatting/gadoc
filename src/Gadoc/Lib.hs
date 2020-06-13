@@ -1,4 +1,12 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, DeriveDataTypeable, ForeignFunctionInterface, GADTs, StandaloneDeriving, TemplateHaskell, MultiWayIf #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 
 module Gadoc.Lib
 
@@ -7,7 +15,7 @@ where
 -- base
 import Foreign.Ptr
 import Data.Maybe
-import Data.List (findIndex, splitAt)
+import Data.List (findIndex, splitAt, isPrefixOf, tails)
 import Control.Monad.State
 import Control.Monad (forM_)
 import qualified Data.ByteString.Char8 as C8
@@ -65,7 +73,8 @@ import System.EasyFile (createDirectoryIfMissing, doesFileExist)
 
 -- directory
 import System.Directory (canonicalizePath, copyFile, doesFileExist, findFile,
-                        getModificationTime, getDirectoryContents, doesDirectoryExist, listDirectory)
+                        getModificationTime, getDirectoryContents, doesDirectoryExist, listDirectory,
+                        findExecutable, getFileSize)
 
 -- gadoc
 import Paths_gadoc (getDataFileName)
@@ -76,10 +85,11 @@ import Web.Browser (openBrowser)
 -- filemanip (find)
 import qualified System.FilePath.Find as Find
 
--- -- process
+-- process
 import System.Process (shell, readCreateProcess, CreateProcess(..))
 
--- optparse-applicative
+-- regex-tdfa
+import Text.Regex.TDFA ((=~))
 
 
 
@@ -352,12 +362,12 @@ contentMatches fn s = do
 indexIsValid :: FilePath -> FilePath -> IO Bool
 indexIsValid hoogleDbFile genDocsDir = do
   s <- show <$> getModificationTime hoogleDbFile
-  (genDocsDir </> "cache.txt") `contentMatches` s
+  (genDocsDir </> "hoogledb.txt") `contentMatches` s
 
 markIndexIsValid :: FilePath -> FilePath -> IO ()
 markIndexIsValid hoogleDbFile genDocsDir = do
   s <- show <$> getModificationTime hoogleDbFile
-  Prelude.writeFile (genDocsDir </> "cache.txt") s
+  Prelude.writeFile (genDocsDir </> "hoogledb.txt") s
 
 
 copyAssets :: FilePath -> IO ()
@@ -367,112 +377,102 @@ copyAssets dstDir = do
     src <- getDataFileName fn
     copyFile src (dstDir </> fn)
 
+---------------------------------------------------------------------------------
 
--- 1. generate haddocks
---   stack: stack build --haddock --only-dependencies
---   nix: already by default
---   cabal: ???
---
--- 2. generate hoogle db
---  stack: stack hoogle --rebuild
---  nix: genDB
---
--- 3. convert index to json & deploy
+mapMaybeM :: Monad m => Maybe a -> (a -> m (Maybe b)) -> m (Maybe b)
+mapMaybeM Nothing f = pure Nothing
+mapMaybeM (Just x) f = f x
 
-data ProjectBuildSystem
-  = Stack
-  | NixPkgs
-  | Cabal
-  deriving (Show, Eq, Ord)
+findSubstring :: Eq a => [a] -> [a] -> Maybe Int
+findSubstring pat str = findIndex (isPrefixOf pat) (tails str)
 
+extractDB :: FilePath -> IO (Maybe FilePath)
+extractDB fn = do
+  let needle = "--database "
+  s <- readFile fn
+  let (a, _, _, xs) = ((s :: String) =~ ("--database ([^ ]+)" :: String)) :: (String, String, String, [String])
+  pure (listToMaybe xs)
 
-inferBuildSystem :: FilePath -> IO ProjectBuildSystem
-inferBuildSystem projectDir = do
-  hasStackYaml <- doesFileExist (projectDir </> "stack.yaml")
-  hasNixFiles <- (||) <$> doesFileExist (projectDir </> "default.nix") <*> doesFileExist (projectDir </> "shell.nix")
-  if hasNixFiles
-     then pure NixPkgs
-     else
-        if hasStackYaml
-           then pure Stack
-           else pure Cabal
-
+searchNixHoogleDB :: IO (Maybe FilePath)
+searchNixHoogleDB = do
+  fn <- findExecutable "hoogle"
+  mapMaybeM fn $ \f' -> do
+    f <- canonicalizePath f'
+    size <- getFileSize f
+    if size < 5000
+       then extractDB f
+       else pure (Nothing)
 
 findStackHoogleDB' :: FilePath -> IO (Maybe FilePath)
 findStackHoogleDB' dir =
   listToMaybe <$> searchFiles "database.hoo" dir
     where searchFiles pat = Find.find Find.always (Find.fileName Find.~~? pat)
 
-
-findStackHoogleDB :: FilePath ->  IO (Maybe FilePath)
-findStackHoogleDB projectDir = do
+searchStackHoogleDB :: FilePath ->  IO (Maybe FilePath)
+searchStackHoogleDB projectDir = do
   let hdir = projectDir </> "./.stack-work/hoogle"
   exists <- doesDirectoryExist hdir
   case exists of
     True -> findStackHoogleDB' hdir
     False -> pure Nothing
 
-
-lookupHoogleDB :: ProjectBuildSystem -> FilePath -> IO (Maybe FilePath)
-lookupHoogleDB Stack projectDir = findStackHoogleDB projectDir
-lookupHoogleDB x projectDir = do
+searchGeneratedHoogleDB :: FilePath -> IO (Maybe FilePath)
+searchGeneratedHoogleDB projectDir = do
   let fn = projectDir </> "generated-docs/db.hoo"
   exists <- doesFileExist fn
-  case exists of
-    True -> pure (Just fn)
-    False -> pure Nothing
+  pure $ case exists of
+    False -> Nothing
+    True -> Just fn
 
-
-generateHoogleDB :: ProjectBuildSystem -> FilePath -> IO (Either String FilePath)
-
-generateHoogleDB Stack projectDir = do
-  readCreateProcess ((shell "stack hoogle --rebuild") { cwd = Just projectDir }) "" >>= putStrLn
-  dbNew <- findStackHoogleDB projectDir
-  case dbNew of
-    Nothing -> pure $ Left "Cannot find hoogle database created by \"stack hoogle\""
-    Just f -> pure $ Right f
-
-generateHoogleDB NixPkgs projectDir = do
-  inNixShell <- isJust <$> lookupEnv "IN_NIX_SHELL"
-  if not inNixShell
-     then pure $ Left "You must gadoc from within a nix shell"
-     else do
-        let fn = projectDir </> "generated-docs/db.hoo"
-        genDb fn
-        pure (Right fn)
-
-generateHoogleDB Cabal projectDir = do
-  let fn = projectDir </> "generated-docs/db.hoo"
-  genDb fn
-  pure (Right fn)
-
-
-getHoogleDB :: ProjectBuildSystem -> FilePath -> IO FilePath
-getHoogleDB buildSystem projectDir = do
-  mf <- lookupHoogleDB buildSystem projectDir
-  case mf of
-    Just f -> pure f
+searchGeneratedHoogleDBAndGen :: FilePath -> IO (Maybe FilePath)
+searchGeneratedHoogleDBAndGen projectDir = do
+  fn <- searchGeneratedHoogleDB projectDir
+  case fn of
+    Just f -> pure (Just f)
     Nothing -> do
-      x <- generateHoogleDB buildSystem projectDir
-      case x of
-        Left x -> do
-            hPutStr stderr (x <> "\n")
-            exitFailure
-        Right f -> pure f
+      let fn = projectDir </> "generated-docs/db.hoo"
+      genDb fn
+      pure (Just fn)
 
+type SearchStrategy = IO (Maybe FilePath)
+
+search :: [IO (Maybe a)] -> IO (Maybe a)
+search [] = pure Nothing
+search (g:gs) = do
+  mf <- g
+  case mf of
+    Just f -> pure (Just f)
+    Nothing -> search gs
+
+searchHoogleDB :: FilePath -> IO (Maybe (HoogleDBSource, FilePath))
+searchHoogleDB projectDir =
+  search
+  [ fmap (GhcPkgGenerated, ) <$> searchGeneratedHoogleDB projectDir
+  , fmap (StackHoogleDB, ) <$> searchStackHoogleDB projectDir
+  , fmap (NixHoogleDB, ) <$> searchNixHoogleDB
+  , fmap (GhcPkgGenerated, ) <$> searchGeneratedHoogleDBAndGen projectDir
+  ]
+
+
+data HoogleDBSource
+  = GhcPkgGenerated
+  | StackHoogleDB
+  | NixHoogleDB
+  deriving (Show, Eq, Ord)
 
 
 main :: IO ()
 main = do
   let projectDir = "."
-  bs <- inferBuildSystem projectDir
 
-  case bs of
-    Stack -> putStrLn "Gadoc: I assume this is a Stack project"
-    NixPkgs -> putStrLn "Gadoc: I assume this is a nix-based project"
-    Cabal -> putStrLn "Gadoc: I assume this is a Cabal project"
+  mf <- searchHoogleDB projectDir
+  (hoogleDBSource, hoogleDbFile) <- case mf of
+    Nothing -> do
+      hPutStr stderr "Could not find or create a Hoogle database"
+      exitFailure
+    Just f -> pure f
 
-  hoogleDbFile <- getHoogleDB bs projectDir
+  putStrLn ("Hoogle DB: " <> show (hoogleDBSource, hoogleDbFile))
 
   let genDocsDir = projectDir </> "generated-docs"
       htmlDir = genDocsDir </> "html"
