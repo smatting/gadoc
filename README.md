@@ -25,7 +25,7 @@ nix-env -if https://github.com/smatting/gadoc/archive/master.tar.gz
 Run `gadoc` in your Haskell project directory. Gadoc will create a `generated-docs` directory and open the file `generated-docs/html/index.html` in your browser.
 Running `gadoc` again (with no changes to packages) will just open the `index.html` again
 
-If your project is built with stack, make sure you've compiled all your packages with their local hasddocks: `stack build --haddock --only-dependencies`.
+If your project is built with stack, make sure you've compiled all your packages with their local haddocks: `stack build --haddock --only-dependencies`.
 
 If your project is built with nix, run `gadoc` from within your nix shell.
 
