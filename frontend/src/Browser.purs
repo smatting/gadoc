@@ -91,7 +91,14 @@ component = Hooks.component \_ _ -> Hooks.do
              setIFrame (packageDocs.url <> "/index.html")
   )
 
-  let onClickIFrameUrl url = HE.onClick (\e -> Just do
+  let onClickIFrameUrl package url = HE.onClick (\e -> Just do
+        case package of
+          Just p -> do
+            allPackageDocs <- Hooks.get allPackageDocsId
+            setCurrentPackage allPackageDocs p
+          Nothing ->
+            pure unit
+
         liftEffect $ preventDefault (toEvent e)
         setIFrame url
       )
@@ -196,7 +203,7 @@ component = Hooks.component \_ _ -> Hooks.do
                         HH.a
                           [ HP.href url,
                             HP.class_ (HH.ClassName "result-detail-package"),
-                            onClickIFrameUrl url
+                            onClickIFrameUrl (Just name) url
                           ]
                           [ HH.text name ]))
                       <>
@@ -209,7 +216,7 @@ component = Hooks.component \_ _ -> Hooks.do
                                   HH.a
                                     [ HP.href tt.url,
                                       HP.class_ (HH.ClassName "result-detail-module"),
-                                      onClickIFrameUrl tt.url
+                                      onClickIFrameUrl (fst <$> t.package) tt.url
                                     ]
                                     [ HH.text m.module ])
                               ))
@@ -314,7 +321,7 @@ component = Hooks.component \_ _ -> Hooks.do
                     [ HH.a
                       [ HP.href pdocs.url,
                         class_ "package-contents",
-                        onClickIFrameUrl (pdocs.url <> "index.html")
+                        onClickIFrameUrl Nothing (pdocs.url <> "index.html")
                         ]
                       [ HH.text "Package Contents" ]
                     ]
@@ -330,7 +337,7 @@ component = Hooks.component \_ _ -> Hooks.do
                         HH.li_
                           [ HH.a
                               [ HP.href mod.url,
-                                onClickIFrameUrl mod.url
+                                onClickIFrameUrl Nothing mod.url
                               ]
 
                               [ HH.text mod.name ]
